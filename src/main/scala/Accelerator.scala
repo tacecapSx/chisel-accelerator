@@ -38,7 +38,7 @@ class Accelerator extends Module {
     }
     
     is(read) {
-      when(iteratorReg === 399.U) {
+      when(iteratorReg === 400.U) {
         stateReg := done
       }.otherwise {
           previousPixel := io.dataRead
