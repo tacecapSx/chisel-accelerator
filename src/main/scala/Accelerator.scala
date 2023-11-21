@@ -13,7 +13,7 @@ class Accelerator extends Module {
 
   })
 
-  val idle :: read :: write :: done :: readLeft :: readRight :: readTop :: readBottom :: Nil = Enum (8)
+  val read :: write :: done :: readRight :: readTop :: readBottom :: Nil = Enum (6)
 
   io.done := false.B
   io.address := 0.U
@@ -21,6 +21,7 @@ class Accelerator extends Module {
   io.dataWrite := 0.U
 
   //Write here your code
+  val previousPixel = RegInit(255.U(8.W))
   val stateReg = RegInit(done)
   val iteratorReg = RegInit(0.U(10.W))
   val addressReg = RegInit(0.U(10.W))
@@ -32,37 +33,39 @@ class Accelerator extends Module {
       io.writeEnable := true.B
       
       io.dataWrite := 255.U
-      stateReg := idle
+      
+      stateReg := read
     }
     
-    is(idle) {
+    is(read) {
       when(iteratorReg === 399.U) {
         stateReg := done
       }.otherwise {
-          stateReg := read
+          previousPixel := io.dataRead
+          io.address := iteratorReg
 
-          addressReg := iteratorReg
+          when(iteratorReg >= 20.U // not top edge pixel
+              && iteratorReg <= 380.U // not bottom edge pixel
+              && iteratorReg % 20.U != 0.U // not left edge pixel
+              && (iteratorReg + 1.U) % 20.U != 0.U // not right edge pixel
+              && io.dataRead === 255.U // white pixel
+              && previousPixel === 255.U // previous pixel was also white (skips left check)
+          ) {
+              addressReg := iteratorReg
+              stateReg := readRight
+          }
+
           iteratorReg := iteratorReg + 1.U
       }
     }
 
-    is(readLeft) {
-      io.address := addressReg + 1.U
-      when(io.dataRead === 255.U) {
-        stateReg := readRight
-      }
-      .otherwise {
-        stateReg := idle
-      }
-    }
-
     is(readRight) {
-      io.address := addressReg - 1.U
+      io.address := addressReg + 1.U
       when(io.dataRead === 255.U) {
         stateReg := readTop
       }
       .otherwise {
-        stateReg := idle
+        stateReg := read
       }
     }
 
@@ -72,7 +75,7 @@ class Accelerator extends Module {
         stateReg := readBottom
       }
       .otherwise {
-        stateReg := idle
+        stateReg := read
       }
     }
 
@@ -83,22 +86,13 @@ class Accelerator extends Module {
         addressReg := iteratorReg + 399.U
       }
       .otherwise {
-        stateReg := idle
+        stateReg := read
       }
     }
 
-    is(read) {
-      io.address := addressReg
-      when(io.dataRead === 255.U) {
-        stateReg := readLeft
-      }
-      .otherwise {
-        stateReg := idle
-      }
-    }
     is(done) {
       when(io.start) {
-        stateReg := idle
+        stateReg := read
       }
       .otherwise {
         io.done := true.B
