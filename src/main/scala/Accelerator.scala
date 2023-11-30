@@ -24,15 +24,17 @@ class Accelerator extends Module {
   val previousPixel = RegInit(255.U(8.W))
   val stateReg = RegInit(done)
   val iteratorReg = RegInit(0.U(10.W))
+  val modReg = RegInit(0.U(10.W)) // for performing modulo operations without using the actual operator
   val addressReg = RegInit(0.U(10.W))
+  val writeReg = RegInit(0.U(8.W))
 
   switch(stateReg) {
     
     is(write) {
-      io.address := addressReg
+      io.address := addressReg + 400.U
       io.writeEnable := true.B
       
-      io.dataWrite := 255.U
+      io.dataWrite := writeReg
       
       stateReg := read
     }
@@ -44,15 +46,25 @@ class Accelerator extends Module {
           previousPixel := io.dataRead
           io.address := iteratorReg
 
-          when(iteratorReg >= 20.U // not top edge pixel
+          addressReg := iteratorReg
+
+          when(iteratorReg - modReg === 0.U) { // is a left edge pixel
+            modReg := modReg + 20.U // change modReg to be the index of the next left edge pixel
+
+            writeReg := 0.U
+            stateReg := write
+          }
+          .elsewhen(iteratorReg >= 20.U // not top edge pixel
               && iteratorReg <= 380.U // not bottom edge pixel
-              && iteratorReg % 20.U != 0.U // not left edge pixel
-              && (iteratorReg + 1.U) % 20.U != 0.U // not right edge pixel
+              && (iteratorReg + 1.U) - modReg != 0.U // not right edge pixel
               && io.dataRead === 255.U // white pixel
               && previousPixel === 255.U // previous pixel was also white (skips left check)
           ) {
-              addressReg := iteratorReg
               stateReg := readRight
+          }
+          .otherwise{
+            writeReg := 0.U
+            stateReg := write
           }
 
           iteratorReg := iteratorReg + 1.U
@@ -82,8 +94,8 @@ class Accelerator extends Module {
     is(readBottom) {
       io.address := addressReg + 20.U
       when(io.dataRead === 255.U) {
+        writeReg := 255.U
         stateReg := write
-        addressReg := iteratorReg + 399.U
       }
       .otherwise {
         stateReg := read
