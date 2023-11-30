@@ -35,6 +35,8 @@ class Accelerator extends Module {
       io.writeEnable := true.B
       
       io.dataWrite := writeReg
+
+      writeReg := 0.U
       
       stateReg := read
     }
@@ -51,7 +53,6 @@ class Accelerator extends Module {
           when(iteratorReg - modReg === 0.U) { // is a left edge pixel
             modReg := modReg + 20.U // change modReg to be the index of the next left edge pixel
 
-            writeReg := 0.U
             stateReg := write
           }
           .elsewhen(iteratorReg >= 20.U // not top edge pixel
@@ -63,7 +64,6 @@ class Accelerator extends Module {
               stateReg := readRight
           }
           .otherwise{
-            writeReg := 0.U
             stateReg := write
           }
 
@@ -77,7 +77,7 @@ class Accelerator extends Module {
         stateReg := readTop
       }
       .otherwise {
-        stateReg := read
+        stateReg := write
       }
     }
 
@@ -87,7 +87,7 @@ class Accelerator extends Module {
         stateReg := readBottom
       }
       .otherwise {
-        stateReg := read
+        stateReg := write
       }
     }
 
@@ -98,7 +98,7 @@ class Accelerator extends Module {
         stateReg := write
       }
       .otherwise {
-        stateReg := read
+        stateReg := write
       }
     }
 
