@@ -50,14 +50,14 @@ class Accelerator extends Module {
 
           addressReg := iteratorReg
 
-          when(iteratorReg - modReg === 0.U) { // is a left edge pixel
+          when(iteratorReg === modReg) { // is a left edge pixel
             modReg := modReg + 20.U // change modReg to be the index of the next left edge pixel
 
             stateReg := write
           }
           .elsewhen(iteratorReg >= 20.U // not top edge pixel
               && iteratorReg <= 380.U // not bottom edge pixel
-              && (iteratorReg + 1.U) - modReg != 0.U // not right edge pixel
+              && (iteratorReg + 1.U) != modReg // not right edge pixel
               && io.dataRead === 255.U // white pixel
               && previousPixel === 255.U // previous pixel was also white (skips left check)
           ) {
